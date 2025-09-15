@@ -1,0 +1,288 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Deployment {{ deployment.id }} | {{ deployment.project.name }} | Deploy Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Deployment Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="mb-1">
+                        <a href="{% url 'projects:public_project_detail' deployment.project.id %}" class="text-decoration-none">{{ deployment.project.name }}</a>
+                        <span class="text-muted">#{{ deployment.id }}</span>
+                    </h1>
+                    <p class="text-muted mb-2">
+                        <i class="fab fa-github"></i> 
+                        <a href="https://github.com/{{ deployment.project.github_repo }}" target="_blank" class="text-decoration-none">{{ deployment.project.github_repo }}</a>
+                    </p>
+                </div>
+                <div>
+                    {% if deployment.status == 'success' %}
+                    <span class="badge bg-success">Success</span>
+                    {% elif deployment.status == 'failed' %}
+                    <span class="badge bg-danger">Failed</span>
+                    {% elif deployment.status == 'in_progress' %}
+                    <span class="badge bg-warning">In Progress</span>
+                    {% elif deployment.status == 'queued' %}
+                    <span class="badge bg-info">Queued</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ deployment.status|title }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="d-flex align-items-center mb-3">
+                {% if deployment.project.user.socialaccount_set.all.0.get_avatar_url %}
+                <img src="{{ deployment.project.user.socialaccount_set.all.0.get_avatar_url }}" alt="{{ deployment.project.user.username }}" class="rounded-circle me-2" style="width: 32px; height: 32px;">
+                {% else %}
+                <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                    <small>{{ deployment.project.user.username|make_list|first|upper }}</small>
+                </div>
+                {% endif %}
+                <div>
+                    <p class="mb-0">Deployed by <strong>{{ deployment.project.user.username }}</strong></p>
+                    <small class="text-muted">{{ deployment.created_at|date:"F j, Y H:i" }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Deployment Details -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card mb-4 mb-lg-0">
+                <div class="card-header">
+                    <h5 class="mb-0">Deployment Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <th scope="row" class="text-muted">Branch</th>
+                                        <td>{{ deployment.branch }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row" class="text-muted">Commit</th>
+                                        <td>
+                                            <code>{{ deployment.commit_hash }}</code>
+                                            {% if deployment.project.github_repo %}
+                                            <a href="https://github.com/{{ deployment.project.github_repo }}/commit/{{ deployment.commit_hash }}" target="_blank" class="ms-2">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row" class="text-muted">Build Command</th>
+                                        <td><code>{{ deployment.build_command }}</code></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <th scope="row" class="text-muted">Status</th>
+                                        <td>
+                                            {% if deployment.status == 'success' %}
+                                            <span class="badge bg-success">Success</span>
+                                            {% elif deployment.status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                            {% elif deployment.status == 'in_progress' %}
+                                            <span class="badge bg-warning">In Progress</span>
+                                            {% elif deployment.status == 'queued' %}
+                                            <span class="badge bg-info">Queued</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ deployment.status|title }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row" class="text-muted">Duration</th>
+                                        <td>
+                                            {% if deployment.duration %}
+                                            {{ deployment.duration|floatformat:1 }} seconds
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row" class="text-muted">Output Directory</th>
+                                        <td><code>{{ deployment.output_directory }}</code></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if deployment.status == 'success' %}
+                        <a href="{{ deployment.live_url }}" target="_blank" class="btn btn-success">
+                            <i class="fas fa-external-link-alt"></i> View Live Site
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'projects:public_deployment_logs' deployment.id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-file-alt"></i> View Logs
+                        </a>
+                        <a href="{% url 'projects:public_project_detail' deployment.project.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Project
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Deployment Steps -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Deployment Steps</h5>
+        </div>
+        <div class="card-body">
+            <div class="deployment-steps">
+                <div class="step {% if deployment.status != 'queued' %}completed{% endif %}">
+                    <div class="step-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="step-content">
+                        <h6>Deployment Queued</h6>
+                        <p class="text-muted small">{{ deployment.created_at|date:"F j, Y H:i:s" }}</p>
+                    </div>
+                </div>
+                
+                <div class="step {% if deployment.status != 'queued' %}completed{% endif %}">
+                    <div class="step-icon">
+                        <i class="fas {% if deployment.status != 'queued' %}fa-check-circle{% else %}fa-circle{% endif %}"></i>
+                    </div>
+                    <div class="step-content">
+                        <h6>Cloning Repository</h6>
+                        <p class="text-muted small">Cloning from {{ deployment.project.github_repo }} ({{ deployment.branch }})</p>
+                    </div>
+                </div>
+                
+                <div class="step {% if deployment.status == 'success' or deployment.status == 'failed' %}completed{% endif %}">
+                    <div class="step-icon">
+                        <i class="fas {% if deployment.status == 'success' or deployment.status == 'failed' %}fa-check-circle{% else %}fa-circle{% endif %}"></i>
+                    </div>
+                    <div class="step-content">
+                        <h6>Building Project</h6>
+                        <p class="text-muted small">Running: <code>{{ deployment.build_command }}</code></p>
+                    </div>
+                </div>
+                
+                <div class="step {% if deployment.status == 'success' %}completed{% elif deployment.status == 'failed' %}failed{% endif %}">
+                    <div class="step-icon">
+                        <i class="fas {% if deployment.status == 'success' %}fa-check-circle{% elif deployment.status == 'failed' %}fa-times-circle{% else %}fa-circle{% endif %}"></i>
+                    </div>
+                    <div class="step-content">
+                        <h6>Deployment {% if deployment.status == 'success' %}Completed{% elif deployment.status == 'failed' %}Failed{% else %}Finalizing{% endif %}</h6>
+                        {% if deployment.status == 'success' %}
+                        <p class="text-muted small">Successfully deployed to {{ deployment.live_url }}</p>
+                        {% elif deployment.status == 'failed' %}
+                        <p class="text-muted small text-danger">Deployment failed. Check logs for details.</p>
+                        {% else %}
+                        <p class="text-muted small">Finalizing deployment...</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Logs Preview -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Logs Preview</h5>
+            <a href="{% url 'projects:public_deployment_logs' deployment.id %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-expand"></i> Full Logs
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <div class="logs-preview bg-dark text-light p-3" style="max-height: 300px; overflow-y: auto; font-family: monospace;">
+                {% if deployment.logs %}
+                <pre class="mb-0">{{ deployment.logs|truncatechars:500 }}</pre>
+                {% if deployment.logs|length > 500 %}
+                <div class="text-center mt-2">
+                    <a href="{% url 'projects:public_deployment_logs' deployment.id %}" class="text-info">View Full Logs</a>
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-muted">No logs available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS for deployment steps -->
+<style>
+.deployment-steps {
+    position: relative;
+}
+
+.deployment-steps:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15px;
+    height: 100%;
+    width: 2px;
+    background: #e9ecef;
+    z-index: 0;
+}
+
+.step {
+    position: relative;
+    padding-left: 45px;
+    margin-bottom: 30px;
+}
+
+.step:last-child {
+    margin-bottom: 0;
+}
+
+.step-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.step.completed .step-icon {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.step.failed .step-icon {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.step-content {
+    padding-bottom: 10px;
+}
+</style>
+{% endblock %}

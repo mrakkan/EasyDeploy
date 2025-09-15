@@ -1,0 +1,130 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Deploy Platform - Deploy Your Projects Easily{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row align-items-center">
+        <div class="col-lg-6">
+            <h1 class="display-4 fw-bold">Deploy Your Projects with Ease</h1>
+            <p class="lead my-4">Deploy Platform helps you deploy your projects quickly and efficiently. Manage your deployments, monitor performance, and share your work with others.</p>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                {% if user.is_authenticated %}
+                <a href="{% url 'accounts:dashboard' %}" class="btn btn-primary btn-lg px-4 me-md-2">Go to Dashboard</a>
+                <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary btn-lg px-4">My Projects</a>
+                {% else %}
+                <a href="{% url 'accounts:signup' %}" class="btn btn-primary btn-lg px-4 me-md-2">Get Started</a>
+                <a href="{% url 'accounts:login' %}" class="btn btn-outline-secondary btn-lg px-4">Login</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="p-5 text-center">
+                <i class="fas fa-rocket fa-10x text-primary"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5 pt-5">
+        <div class="col-12 text-center">
+            <h2 class="mb-4">Why Choose Deploy Platform?</h2>
+        </div>
+    </div>
+
+    <div class="row g-4 py-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-bolt fa-3x text-primary"></i>
+                    </div>
+                    <h3 class="card-title">Fast Deployment</h3>
+                    <p class="card-text">Deploy your projects in seconds with our streamlined deployment process.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-shield-alt fa-3x text-primary"></i>
+                    </div>
+                    <h3 class="card-title">Secure</h3>
+                    <p class="card-text">Your projects are deployed in isolated environments for maximum security.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-chart-line fa-3x text-primary"></i>
+                    </div>
+                    <h3 class="card-title">Monitoring</h3>
+                    <p class="card-text">Monitor your deployments with real-time logs and performance metrics.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-12 text-center">
+            <h2 class="mb-4">How It Works</h2>
+        </div>
+    </div>
+
+    <div class="row g-4 py-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <h3 class="m-0">1</h3>
+                        </div>
+                    </div>
+                    <h3 class="card-title">Create Project</h3>
+                    <p class="card-text">Create a new project and configure your deployment settings.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <h3 class="m-0">2</h3>
+                        </div>
+                    </div>
+                    <h3 class="card-title">Connect Repository</h3>
+                    <p class="card-text">Connect your GitHub repository to your project.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <h3 class="m-0">3</h3>
+                        </div>
+                    </div>
+                    <h3 class="card-title">Deploy</h3>
+                    <p class="card-text">Deploy your project with a single click and share it with others.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5 py-5">
+        <div class="col-12 text-center">
+            <h2 class="mb-4">Ready to Get Started?</h2>
+            <p class="lead">Join thousands of developers who are already using Deploy Platform.</p>
+            {% if user.is_authenticated %}
+            <a href="{% url 'projects:project_create' %}" class="btn btn-primary btn-lg px-4 mt-3">Create Your First Project</a>
+            {% else %}
+            <a href="{% url 'accounts:signup' %}" class="btn btn-primary btn-lg px-4 mt-3">Sign Up Now</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

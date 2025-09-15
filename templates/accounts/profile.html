@@ -1,0 +1,191 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Profile | Deploy Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-4">Profile</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <!-- Profile Card -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        {% if user.socialaccount_set.all.0.get_avatar_url %}
+                        <img src="{{ user.socialaccount_set.all.0.get_avatar_url }}" alt="{{ user.username }}" class="rounded-circle img-fluid" style="width: 150px;">
+                        {% else %}
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto" style="width: 150px; height: 150px;">
+                            <h1>{{ user.username|make_list|first|upper }}</h1>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <h3>{{ user.username }}</h3>
+                    <p class="text-muted">{{ user.email }}</p>
+                    <p>
+                        <span class="badge bg-primary">{{ projects_count }} Projects</span>
+                        <span class="badge bg-secondary">{{ deployments_count }} Deployments</span>
+                    </p>
+                    {% if user.socialaccount_set.all %}
+                    <p>
+                        <i class="fab fa-github"></i> Connected with GitHub
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Social Accounts -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Connected Accounts</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.socialaccount_set.all %}
+                    <ul class="list-group list-group-flush">
+                        {% for account in user.socialaccount_set.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {% if account.provider == 'github' %}
+                            <div>
+                                <i class="fab fa-github"></i> GitHub
+                                <small class="text-muted d-block">{{ account.extra_data.login }}</small>
+                            </div>
+                            <form method="post" action="" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="disconnect_github" value="1">
+                                <input type="hidden" name="account_id" value="{{ account.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Disconnect</button>
+                            </form>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p>No connected accounts.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <!-- Account Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Account Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="update_profile" value="1">
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.username.id_for_label }}">Username</label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.username.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.email.id_for_label }}">Email</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.email.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.first_name.id_for_label }}">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.first_name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.last_name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Change Password</h5>
+                </div>
+                <div class="card-body">
+                    {% if message %}
+                    <div class="alert alert-{{ message_type }}" role="alert">
+                        {{ message }}
+                    </div>
+                    {% endif %}
+                    <form method="post" action="" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="change_password" value="1">
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current_password" name="old_password" required>
+                            <div class="invalid-feedback">
+                                Please enter your current password.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password1" required>
+                            <div class="invalid-feedback">
+                                Please enter a new password.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="new_password2" required>
+                            <div class="invalid-feedback">
+                                Please confirm your new password.
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
