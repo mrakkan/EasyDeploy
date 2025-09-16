@@ -1,0 +1,93 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Deploy {{ repository.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'projects:github_repositories' %}">GitHub Repositories</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Deploy {{ repository.name }}</li>
+                </ol>
+            </nav>
+            <h1 class="h3">Deploy {{ repository.name }}</h1>
+            <p class="text-muted">สร้างโปรเจกต์ใหม่จาก GitHub repository</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">ข้อมูล Repository</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ชื่อ Repository</label>
+                        <p>{{ repository.name }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Full Name</label>
+                        <p>{{ repository.full_name }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">คำอธิบาย</label>
+                        <p>{% if repository.description %}{{ repository.description }}{% else %}<span class="text-muted">ไม่มีคำอธิบาย</span>{% endif %}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">URL</label>
+                        <p><a href="{{ repository.html_url }}" target="_blank">{{ repository.html_url }}</a></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Default Branch</label>
+                        <p>{{ repository.default_branch }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">สถานะ</label>
+                        <p>
+                            <span class="badge bg-{% if repository.private %}danger{% else %}success{% endif %}">
+                                {% if repository.private %}Private{% else %}Public{% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">ตั้งค่าการ Deploy</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_public" name="is_public">
+                            <label class="form-check-label" for="is_public">เปิดเป็นสาธารณะ</label>
+                            <div class="form-text">อนุญาตให้ผู้ใช้อื่นเข้าถึงโปรเจกต์นี้ได้</div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            โปรเจกต์ต้องมีไฟล์ <code>Dockerfile</code> ในโฟลเดอร์หลักเพื่อใช้ในการ deploy
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-cloud-upload me-2"></i> Deploy
+                            </button>
+                            <a href="{% url 'projects:github_repositories' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i> กลับ
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

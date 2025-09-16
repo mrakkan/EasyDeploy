@@ -1,0 +1,168 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Explore Public Projects | Deploy Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold mb-3">Explore Public Projects</h1>
+        <p class="lead text-muted">Discover what others are building and deploying on our platform</p>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" class="form-control" placeholder="Search projects..." value="{{ request.GET.search|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select name="sort" class="form-select">
+                        <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>Newest First</option>
+                        <option value="created_at" {% if request.GET.sort == 'created_at' %}selected{% endif %}>Oldest First</option>
+                        <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                        <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z-A)</option>
+                        <option value="-popularity" {% if request.GET.sort == '-popularity' %}selected{% endif %}>Most Popular</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Projects Grid -->
+    {% if projects %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+        {% for project in projects %}
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">
+                            <a href="{% url 'projects:public_project_detail' project.id %}" class="text-decoration-none">{{ project.name }}</a>
+                        </h5>
+                        <span class="badge bg-info">Public</span>
+                    </div>
+                    <p class="card-text text-muted small mb-2">
+                        <i class="fab fa-github"></i> {{ project.github_repo }}
+                    </p>
+                    <p class="card-text mb-3">{{ project.description|truncatechars:100 }}</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            {% if project.user.socialaccount_set.all.0.get_avatar_url %}
+                            <img src="{{ project.user.socialaccount_set.all.0.get_avatar_url }}" alt="{{ project.user.username }}" class="rounded-circle me-2" style="width: 24px; height: 24px;">
+                            {% else %}
+                            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
+                                <small>{{ project.user.username|make_list|first|upper }}</small>
+                            </div>
+                            {% endif %}
+                            <small class="text-muted">{{ project.user.username }}</small>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-calendar-alt"></i> {{ project.created_at|date:"M d, Y" }}
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-rocket"></i> {{ project.deployments.count }} Deployments
+                            </span>
+                        </div>
+                        <a href="{% url 'projects:public_project_detail' project.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View Project
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="First">
+                    <span aria-hidden="true">&laquo;&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="Last">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <i class="fas fa-search fa-4x text-muted"></i>
+        </div>
+        <h3>No public projects found</h3>
+        <p class="text-muted">No public projects match your search criteria.</p>
+        <a href="{% url 'projects:public_projects' %}" class="btn btn-primary mt-3">
+            <i class="fas fa-sync"></i> Clear Filters
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Call to Action -->
+    <div class="card bg-light mt-5">
+        <div class="card-body text-center py-4">
+            <h3>Ready to showcase your project?</h3>
+            <p class="lead">Create an account and start deploying your projects today.</p>
+            <div class="mt-3">
+                {% if user.is_authenticated %}
+                <a href="{% url 'projects:project_create' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus"></i> Create Your Project
+                </a>
+                {% else %}
+                <a href="{% url 'accounts:signup' %}" class="btn btn-primary btn-lg me-2">
+                    <i class="fas fa-user-plus"></i> Sign Up
+                </a>
+                <a href="{% url 'accounts:login' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-sign-in-alt"></i> Log In
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
