@@ -37,17 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.sites',
-    
-    # Third-party apps
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.github',
-    
-    # Local apps
-    'accounts',
-    'projects',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -58,7 +48,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'deploy_platform.urls'
@@ -70,6 +59,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -137,57 +127,18 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model
-AUTH_USER_MODEL = 'accounts.User'
+# Login/Logout URLs
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
 
-# Authentication settings
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-]
-
-SITE_ID = 1
-
-# AllAuth settings
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
-ACCOUNT_LOGOUT_ON_GET = True
-ACCOUNT_LOGIN_ON_GET = True
-ACCOUNT_SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_LOGIN_ON_GET = True
-SOCIALACCOUNT_STORE_TOKENS = True
-
-# GitHub OAuth settings
-# คุณต้องลงทะเบียนแอปพลิเคชันใน GitHub และนำ Client ID และ Client Secret มาใส่ที่นี่
-# ไปที่ https://github.com/settings/developers และสร้าง OAuth App
-# ตั้งค่า Homepage URL เป็น http://127.0.0.1:8000/
-# ตั้งค่า Authorization callback URL เป็น http://127.0.0.1:8000/accounts/github/login/callback/
-SOCIALACCOUNT_PROVIDERS = {
-    'github': {
-        'SCOPE': [
-            'user',
-            'repo',
-            'read:user',
-            'user:email',
-            'read:org',
-        ],
-        'APP': {
-            'client_id': 'Ov23liDBqBoJA5motUgG',
-            'secret': '74facd2c72437fce0bf75dd91ff0a8738657ebc0',
-        },
-        'CALLBACK_URL': 'http://127.0.0.1:8000/accounts/github/login/callback/'
-    }
-}
+# GitHub OAuth Settings
+GITHUB_CLIENT_ID = 'Ov23liDBqBoJA5motUgG'
+GITHUB_CLIENT_SECRET = 'eb1a57dd78a98c8dd584d5743537b932baae4b8d'
+GITHUB_REDIRECT_URI = 'http://localhost:8000/github/callback/'
 
 # Login/Logout URLs
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
-# Ensure GitHub OAuth redirects to dashboard
-SOCIALACCOUNT_LOGIN_ON_GET = True
-SOCIALACCOUNT_ADAPTER = 'accounts.adapter.CustomSocialAccountAdapter'
 
 # Static files
 STATIC_URL = '/static/'

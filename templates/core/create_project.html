@@ -1,0 +1,128 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Create Project - EasyDeploy{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-plus-circle"></i> Create New Project</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Project Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Choose a unique name for your project</div>
+                    </div>
+                    
+                    {% if has_github_connected and github_repos %}
+                    <div class="mb-3">
+                        <label for="repo_select" class="form-label">Select GitHub Repository *</label>
+                        <select class="form-select" id="repo_select" required>
+                            <option value="" selected disabled>-- Select a repository --</option>
+                            {% for r in github_repos %}
+                                <option value="{{ r.clone_url }}" data-name="{{ r.name }}">{{ r.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Repositories fetched from your GitHub</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="github_repo_url" class="form-label">GitHub Repository URL *</label>
+                        <input type="url" class="form-control" id="github_repo_url" name="github_repo_url" 
+                               placeholder="https://github.com/username/repository" required>
+                        <div class="form-text">The GitHub repository containing your application code</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="exposed_port" class="form-label">Port</label>
+                        <input type="number" class="form-control" id="exposed_port" name="exposed_port" 
+                               placeholder="3000" min="1" max="65535">
+                        <div class="form-text">Port number for your application (auto-assigned if empty)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_public" name="is_public">
+                            <label class="form-check-label" for="is_public">
+                                Make this project public (others can view and deploy)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Advanced build & run settings -->
+                    <div class="mb-3">
+                        <label for="dockerfile_path" class="form-label">Dockerfile Path</label>
+                        <input type="text" class="form-control" id="dockerfile_path" name="dockerfile_path" placeholder="Dockerfile">
+                        <div class="form-text">Relative path to Dockerfile (default: Dockerfile at repository root)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="build_command" class="form-label">Custom Build Command</label>
+                        <input type="text" class="form-control" id="build_command" name="build_command" placeholder="Optional">
+                        <div class="form-text">Optional. Example: npm install && npm run build</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="run_command" class="form-label">Custom Run Command</label>
+                        <input type="text" class="form-control" id="run_command" name="run_command" placeholder="Optional">
+                        <div class="form-text">Optional. If empty, container will run the built image's default CMD</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="env_vars" class="form-label">Environment Variables</label>
+                        <textarea class="form-control" id="env_vars" name="env_vars" rows="5" placeholder="KEY=VALUE\nANOTHER_KEY=another_value"></textarea>
+                        <div class="form-text">One per line in KEY=VALUE format. Lines starting with # are ignored.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus"></i> Create Project
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-generate project name from GitHub URL
+const repoUrlInput = document.getElementById('github_repo_url');
+const nameInput = document.getElementById('name');
+
+repoUrlInput.addEventListener('blur', function() {
+    const url = this.value;
+    if (url && !nameInput.value) {
+        const match = url.match(/github\.com\/[^\/]+\/([^\/]+)/);
+        if (match) {
+            nameInput.value = match[1].replace('.git', '');
+        }
+    }
+});
+
+// If user selects from dropdown, fill URL and name
+const repoSelect = document.getElementById('repo_select');
+if (repoSelect) {
+    repoSelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const cloneUrl = selected.value;
+        const repoName = selected.getAttribute('data-name');
+        if (cloneUrl) {
+            repoUrlInput.value = cloneUrl;
+        }
+        if (repoName && !nameInput.value) {
+            nameInput.value = repoName;
+        }
+    });
+}
+</script>
+{% endblock %}

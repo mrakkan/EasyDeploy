@@ -1,0 +1,142 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h1 class="h4 mb-0"><i class="bi bi-person-lines-fill me-2"></i>Edit Profile</h1>
+            <a href="{% url 'core:profile' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Close</a>
+          </div>
+
+          <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            <!-- Basic Information -->
+            <div class="mb-4">
+              <h2 class="h6 text-uppercase text-muted mb-3">Basic Information</h2>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="first_name" class="form-label">First Name</label>
+                  <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" class="form-control">
+                </div>
+                <div class="col-md-6">
+                  <label for="last_name" class="form-label">Last Name</label>
+                  <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" class="form-control">
+                </div>
+                <div class="col-12">
+                  <label for="email" class="form-label">Email Address</label>
+                  <input type="email" id="email" name="email" value="{{ user.email }}" class="form-control" required>
+                  <div class="invalid-feedback">Please provide a valid email.</div>
+                </div>
+                <div class="col-12">
+                  <label for="bio" class="form-label">Bio</label>
+                  <textarea id="bio" name="bio" rows="3" class="form-control" placeholder="Tell us a little about yourself...">{{ profile.bio }}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Professional Information -->
+            <div class="mb-4">
+              <h2 class="h6 text-uppercase text-muted mb-3">Professional Information</h2>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="company" class="form-label">Company</label>
+                  <input type="text" id="company" name="company" value="{{ profile.company }}" class="form-control" placeholder="Your company or organization">
+                </div>
+                <div class="col-md-6">
+                  <label for="location" class="form-label">Location</label>
+                  <input type="text" id="location" name="location" value="{{ profile.location }}" class="form-control" placeholder="City, Country">
+                </div>
+                <div class="col-12">
+                  <label for="website" class="form-label">Website</label>
+                  <input type="url" id="website" name="website" value="{{ profile.website }}" class="form-control" placeholder="https://your-website.com">
+                </div>
+              </div>
+            </div>
+
+            <!-- Social Links -->
+            <div class="mb-4">
+              <h2 class="h6 text-uppercase text-muted mb-3">Social Links</h2>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label for="github_username" class="form-label">GitHub Username</label>
+                  <div class="input-group">
+                    <span class="input-group-text">github.com/</span>
+                    <input type="text" id="github_username" name="github_username" value="{{ profile.github_username }}" class="form-control" placeholder="username">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label for="twitter_username" class="form-label">Twitter Username</label>
+                  <div class="input-group">
+                    <span class="input-group-text">@</span>
+                    <input type="text" id="twitter_username" name="twitter_username" value="{{ profile.twitter_username }}" class="form-control" placeholder="username">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label for="linkedin_username" class="form-label">LinkedIn Username</label>
+                  <div class="input-group">
+                    <span class="input-group-text">linkedin.com/in/</span>
+                    <input type="text" id="linkedin_username" name="linkedin_username" value="{{ profile.linkedin_username }}" class="form-control" placeholder="username">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex justify-content-end gap-2">
+              <a href="{% url 'core:profile' %}" class="btn btn-outline-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  // Bootstrap client-side validation styling
+  const form = document.querySelector('form.needs-validation');
+  if (form) {
+    form.addEventListener('submit', function (event) {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add('was-validated');
+    }, false);
+  }
+
+  // Auto-format social media inputs if elements exist
+  const tw = document.getElementById('twitter_username');
+  if (tw) {
+    tw.addEventListener('input', function(e){
+      if (e.target.value.startsWith('@')) {
+        e.target.value = e.target.value.substring(1);
+      }
+    });
+  }
+
+  const li = document.getElementById('linkedin_username');
+  if (li) {
+    li.addEventListener('input', function(e){
+      const value = e.target.value;
+      if (value.includes('linkedin.com/in/')) {
+        const parts = value.split('/in/');
+        if (parts.length > 1) {
+          e.target.value = parts[1].replace(/\/$/, '');
+        }
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

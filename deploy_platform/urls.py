@@ -21,9 +21,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('accounts.urls')),  # ย้ายขึ้นมาก่อน allauth เพื่อให้ accounts/login/ ใช้ login_view ของเราแทน
-    path('accounts/', include('allauth.urls')),
-    path('projects/', include('projects.urls')),
+    path('', include('core.urls')),
 ]
 
 if settings.DEBUG:

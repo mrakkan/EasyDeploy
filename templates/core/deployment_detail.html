@@ -1,0 +1,212 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Deployment {{ deployment.id }} - EasyDeploy{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="bi bi-clock-history"></i> Deployment #{{ deployment.id }}</h1>
+        <p class="text-muted">
+            Project: <a href="{% url 'core:project_detail' deployment.project.id %}" class="text-decoration-none">
+                {{ deployment.project.name }}
+            </a>
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'core:project_detail' deployment.project.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Project
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Deployment Info</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7">
+                        {% if deployment.status == 'success' %}
+                            <span class="badge bg-success">Success</span>
+                        {% elif deployment.status == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                        {% elif deployment.status == 'in_progress' %}
+                            <span class="badge bg-warning">In Progress</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ deployment.status|title }}</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-5">Started:</dt>
+                    <dd class="col-sm-7">{{ deployment.timestamp|date:"M d, Y H:i" }}</dd>
+                    
+                    <dt class="col-sm-5">Duration:</dt>
+                    <dd class="col-sm-7">
+                        {% if deployment.duration %}
+                            {{ deployment.duration }}s
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-5">Commit:</dt>
+                    <dd class="col-sm-7">
+                        {% if deployment.commit_hash %}
+                            <small class="font-monospace">{{ deployment.commit_hash|truncatechars:8 }}</small>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-5">Branch:</dt>
+                    <dd class="col-sm-7">
+                        {% if deployment.branch %}
+                            <code>{{ deployment.branch }}</code>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+                
+                {% if deployment.docker_image_tag %}
+                <hr>
+                <h6>Docker Image:</h6>
+                <p><small class="text-muted font-monospace">{{ deployment.docker_image_tag }}</small></p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if deployment.status == 'success' and deployment.project.exposed_port %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-link"></i> Access Application</h6>
+            </div>
+            <div class="card-body text-center">
+                <a href="http://localhost:{{ deployment.project.exposed_port }}" target="_blank" class="btn btn-success">
+                    <i class="bi bi-box-arrow-up-right"></i> Open Application
+                </a>
+                <p class="text-muted mt-2 mb-0">
+                    <small>Running on port {{ deployment.project.exposed_port }}</small>
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-terminal"></i> Deployment Log</h5>
+            </div>
+            <div class="card-body">
+                <div class="bg-dark text-light p-3 rounded" style="font-family: monospace; font-size: 0.9em; max-height: 500px; overflow-y: auto;">
+                    {% if deployment.log %}
+                        <pre class="mb-0">{{ deployment.log }}</pre>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="bi bi-file-text display-4"></i>
+                            <p class="mt-2">No deployment log available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% if deployment.status == 'failed' and deployment.error_message %}
+        <div class="card mt-3">
+            <div class="card-header bg-danger text-white">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Error Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger mb-0">
+                    <strong>Error:</strong> {{ deployment.error_message }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list"></i> Recent Deployments</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_deployments %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th>Duration</th>
+                                <th>Commit</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dep in recent_deployments %}
+                            <tr {% if dep.id == deployment.id %}class="table-primary"{% endif %}>
+                                <td><strong>#{{ dep.id }}</strong></td>
+                                <td>
+                                    {% if dep.status == 'success' %}
+                                        <span class="badge bg-success">Success</span>
+                                    {% elif dep.status == 'failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ dep.status|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ dep.timestamp|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    {% if dep.duration %}
+                                        {{ dep.duration }}s
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if dep.commit_hash %}
+                                        <small class="font-monospace">{{ dep.commit_hash|truncatechars:8 }}</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'core:deployment_detail' dep.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-clock display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No other deployments found</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh for in-progress deployments
+{% if deployment.status == 'in_progress' %}
+setTimeout(function() {
+    location.reload();
+}, 5000);
+{% endif %}
+</script>
+{% endblock %}

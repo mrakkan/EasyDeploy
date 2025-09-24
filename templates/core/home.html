@@ -1,0 +1,63 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Home - EasyDeploy{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="text-center py-5">
+            <h1 class="display-4 fw-bold text-primary">
+                <i class="bi bi-cloud-upload"></i> EasyDeploy
+            </h1>
+            <p class="lead">Deploy your projects with ease</p>
+            
+            {% if not user.is_authenticated %}
+            <div class="mt-4">
+                <a href="{% url 'core:user_login' %}" class="btn btn-primary btn-lg me-3">
+                    <i class="bi bi-box-arrow-in-right"></i> Login
+                </a>
+            </div>
+            {% else %}
+            <div class="mt-4">
+                <a href="{% url 'core:dashboard' %}" class="btn btn-primary btn-lg me-3">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+                <a href="{% url 'core:project_list' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-folder"></i> My Projects
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-4 text-center">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <i class="bi bi-github display-4 text-dark"></i>
+                        <h5 class="card-title mt-3">GitHub Integration</h5>
+                        <p class="card-text">Connect your GitHub repositories and deploy automatically</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <i class="bi bi-lightning display-4 text-warning"></i>
+                        <h5 class="card-title mt-3">Fast Deployment</h5>
+                        <p class="card-text">Deploy your applications quickly and efficiently</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <i class="bi bi-shield-check display-4 text-success"></i>
+                        <h5 class="card-title mt-3">Secure & Reliable</h5>
+                        <p class="card-text">Keep your deployments secure and monitor their status</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard - EasyDeploy{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
+    <a href="{% url 'core:create_project' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> New Project
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Projects</h6>
+                        <h2 class="mb-0">{{ projects.count }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-folder display-6"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Active Projects</h6>
+                        <h2 class="mb-0">{{ active_projects.count }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-check-circle display-6"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Pending Deployments</h6>
+                        <h2 class="mb-0">{{ pending_deployments.count }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock display-6"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock"></i> Recent Deployments</h5>
+                <a href="{% url 'core:project_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_deployments %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Deployed At</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for deployment in recent_deployments %}
+                            <tr>
+                                <td>
+                                    <strong>{{ deployment.project.name }}</strong>
+                                    <br><small class="text-muted">{{ deployment.commit_message|truncatechars:50 }}</small>
+                                </td>
+                                <td>
+                                    {% if deployment.status == 'success' %}
+                                        <span class="badge bg-success">Success</span>
+                                    {% elif deployment.status == 'failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ deployment.status|title }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ deployment.created_at|date:"M d, H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'core:deployment_detail' deployment.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No deployments yet</p>
+                    <a href="{% url 'core:create_project' %}" class="btn btn-primary">Create your first project</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-folder"></i> Recent Projects</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_projects %}
+                <div class="list-group list-group-flush">
+                    {% for project in recent_projects %}
+                    <a href="{% url 'core:project_detail' project.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ project.name }}</h6>
+                            <small class="text-muted">{{ project.updated_at|date:"M d" }}</small>
+                        </div>
+                        <p class="mb-1 small">No description</p>
+                        <small class="text-muted">
+                            {% if project.is_public %}
+                                <i class="bi bi-globe"></i> Public
+                            {% else %}
+                                <i class="bi bi-lock"></i> Private
+                            {% endif %}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-folder-x display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No projects yet</p>
+                    <a href="{% url 'core:create_project' %}" class="btn btn-primary">Create Project</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
