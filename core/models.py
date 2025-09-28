@@ -245,9 +245,46 @@ class Project(models.Model):
         except Exception as e:
             return False, str(e)
 
+    def check_container_status(self):
+        """Check if container is actually running in Docker and update status"""
+        if not self.docker_container_id:
+            if self.status == 'running':
+                self.status = 'stopped'
+                self.save()
+            return False
+            
+        try:
+            # Check container status using docker inspect
+            cmd = ['docker', 'inspect', '--format', '{{.State.Running}}', self.docker_container_id]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # If command failed or container not running
+            if result.returncode != 0 or result.stdout.strip().lower() != 'true':
+                if self.status == 'running':
+                    self.status = 'stopped'
+                    self.docker_container_id = ''
+                    self.save()
+                return False
+                
+            # Container is running
+            if self.status != 'running':
+                self.status = 'running'
+                self.save()
+            return True
+            
+        except Exception:
+            # On any error, assume container is not running
+            if self.status == 'running':
+                self.status = 'stopped'
+                self.docker_container_id = ''
+                self.save()
+            return False
+    
     def get_preview_url(self):
         """Return preview URL if container is running"""
-        if self.status == 'running' and self.exposed_port:
+        # First verify container is actually running
+        is_running = self.check_container_status()
+        if is_running and self.exposed_port:
             return f"http://localhost:{self.exposed_port}/"
         return ""
 

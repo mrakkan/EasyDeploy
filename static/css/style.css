@@ -14,7 +14,6 @@
     --transition-speed: 0.3s;
 }
 
-/* General Styles */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--light-bg);
@@ -24,7 +23,6 @@ body {
 
 .container {
     max-width: 1200px;
-    margin: 0 auto;
     padding: 0 15px;
 }
 

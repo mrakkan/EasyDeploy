@@ -1,63 +1,112 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
 {% block title %}Home - EasyDeploy{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="text-center py-5">
-            <h1 class="display-4 fw-bold text-primary">
-                <i class="bi bi-cloud-upload"></i> EasyDeploy
-            </h1>
-            <p class="lead">Deploy your projects with ease</p>
-            
-            {% if not user.is_authenticated %}
-            <div class="mt-4">
-                <a href="{% url 'core:user_login' %}" class="btn btn-primary btn-lg me-3">
-                    <i class="bi bi-box-arrow-in-right"></i> Login
-                </a>
-            </div>
-            {% else %}
-            <div class="mt-4">
-                <a href="{% url 'core:dashboard' %}" class="btn btn-primary btn-lg me-3">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-                <a href="{% url 'core:project_list' %}" class="btn btn-outline-primary btn-lg">
-                    <i class="bi bi-folder"></i> My Projects
-                </a>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="row mt-5">
-            <div class="col-md-4 text-center">
-                <div class="card border-0">
-                    <div class="card-body">
-                        <i class="bi bi-github display-4 text-dark"></i>
-                        <h5 class="card-title mt-3">GitHub Integration</h5>
-                        <p class="card-text">Connect your GitHub repositories and deploy automatically</p>
-                    </div>
+<!-- Hero Section -->
+<div class="hero-section py-5 w-100">
+    <div class="container position-relative">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-3 fw-bold mb-4">Deploy apps, APIs,<br>and AI workloads<br>in minutes</h1>
+                <p class="lead mb-4 fs-4">Start fast with built-in preview environments, autoscaling, and private networking. Customize infrastructure as you grow—no Kubernetes required.</p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'core:explore_projects' %}" class="btn btn-primary btn-lg px-4 py-3">
+                        Explore Projects
+                    </a>
+                    {% if not user.is_authenticated %}
+                    <a href="{% url 'core:user_login' %}" class="btn btn-outline-dark btn-lg px-4 py-3">
+                        Login
+                    </a>
+                    {% endif %}
                 </div>
             </div>
-            <div class="col-md-4 text-center">
-                <div class="card border-0">
-                    <div class="card-body">
-                        <i class="bi bi-lightning display-4 text-warning"></i>
-                        <h5 class="card-title mt-3">Fast Deployment</h5>
-                        <p class="card-text">Deploy your applications quickly and efficiently</p>
+            <div class="col-lg-6">
+                <div class="terminal-window mt-4 mt-lg-0">
+                    <div class="terminal-header">
+                        <div class="terminal-buttons">
+                            <span class="terminal-button red"></span>
+                            <span class="terminal-button yellow"></span>
+                            <span class="terminal-button green"></span>
+                        </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-4 text-center">
-                <div class="card border-0">
-                    <div class="card-body">
-                        <i class="bi bi-shield-check display-4 text-success"></i>
-                        <h5 class="card-title mt-3">Secure & Reliable</h5>
-                        <p class="card-text">Keep your deployments secure and monitor their status</p>
+                    <div class="terminal-body">
+                        <div class="terminal-text">
+                            <span class="text-success">$</span> git push
+                            <div class="text-muted">Pushing to EasyDeploy...</div>
+                            <div class="text-muted">Building application...</div>
+                            <div class="text-muted">Deploying to production...</div>
+                            <div class="text-success">✓ Deployment successful!</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+
+    .hero-section {
+        padding: 80px 0;
+        position: relative;
+        overflow: hidden;
+        background-color: #f8f9fa;
+        width: 100vw;
+        margin-left: -15px;
+        margin-right: -15px;
+    }
+    
+
+    
+    .terminal-window {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .terminal-header {
+        background-color: #323232;
+        padding: 10px 15px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .terminal-buttons {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .terminal-button {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .terminal-button.red {
+        background-color: #ff5f56;
+    }
+    
+    .terminal-button.yellow {
+        background-color: #ffbd2e;
+    }
+    
+    .terminal-button.green {
+        background-color: #27c93f;
+    }
+    
+    .terminal-body {
+        padding: 20px;
+        color: white;
+        font-family: monospace;
+    }
+    
+    .terminal-text {
+        line-height: 1.6;
+    }
+</style>
 {% endblock %}

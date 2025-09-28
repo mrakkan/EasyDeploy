@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
-from .models import Project, Deployment, EnvironmentVariable, UserProfile, SocialAccount
+from .models import Project, Deployment, EnvironmentVariable, UserProfile, SocialAccount, Tag, ProjectTag
 from django.utils import timezone
+from django.utils.text import slugify
 import requests
 from django.conf import settings
 import secrets
@@ -226,8 +227,12 @@ def dashboard(request):
     ).order_by('-timestamp')[:10]
     recent_projects = Project.objects.filter(owner=request.user).order_by('-updated_at')[:5]
 
-    # แก้การนับ Active: เดิมนับทุก deployment ที่ success (เป็นประวัติย้อนหลัง)
-    # ปรับให้นับจำนวนโปรเจกต์ที่กำลังรันอยู่จริง (status='running')
+    # ตรวจสอบสถานะ container จริงจาก Docker สำหรับทุกโปรเจกต์ที่มีสถานะ 'running'
+    running_projects = Project.objects.filter(owner=request.user, status='running')
+    for project in running_projects:
+        project.check_container_status()  # อัพเดทสถานะตามสถานะ container จริง
+    
+    # ดึงข้อมูลโปรเจกต์ที่รันอยู่อีกครั้งหลังจากอัพเดทสถานะแล้ว
     active_projects = Project.objects.filter(owner=request.user, status='running')
     pending_deployments = Deployment.objects.filter(project__owner=request.user, status='in_progress')
     
@@ -254,6 +259,11 @@ def project_detail(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     if project.owner != request.user:
         return HttpResponseForbidden("You do not have access to this project")
+    
+    # ตรวจสอบสถานะ container จริงจาก Docker
+    if project.status == 'running':
+        project.check_container_status()
+        
     env_vars = EnvironmentVariable.objects.filter(project=project).order_by('key')
     deployments = Deployment.objects.filter(project=project).order_by('-timestamp')
     return render(request, 'core/project_detail.html', {
@@ -517,12 +527,76 @@ def change_password(request):
 def explore_projects(request):
     """Public explore page showing only public projects"""
     q = request.GET.get('q', '').strip()
+    tag_slug = request.GET.get('tag', '').strip()
+    
     projects = Project.objects.filter(is_public=True)
+    
+    # Filter by search query
     if q:
         projects = projects.filter(Q(name__icontains=q))
+    
+    # Filter by tag
+    selected_tag_name = ""
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        projects = projects.filter(tags=tag)
+        selected_tag_name = tag.name
+    
+    # Get all tags for filter dropdown
+    all_tags = Tag.objects.all().order_by('name')
+    
     projects = projects.order_by('-updated_at')[:100]
-    return render(request, 'core/explore_projects.html', {'projects': projects, 'q': q})
+    return render(request, 'core/explore_projects.html', {
+        'projects': projects, 
+        'q': q,
+        'all_tags': all_tags,
+        'selected_tag': tag_slug,
+        'selected_tag_name': selected_tag_name
+    })
 
+@login_required
+def add_project_tag(request):
+    """Add a tag to a project"""
+    if request.method == 'POST':
+        project_id = request.POST.get('project_id')
+        tag_name = request.POST.get('tag_name', '').strip()
+        
+        if not tag_name:
+            return JsonResponse({'status': 'error', 'message': 'Tag name is required'})
+            
+        project = get_object_or_404(Project, id=project_id, owner=request.user)
+        
+        # Get or create the tag
+        tag, created = Tag.objects.get_or_create(
+            name=tag_name,
+            defaults={'slug': slugify(tag_name)}
+        )
+        
+        # Add tag to project if not already added
+        if not ProjectTag.objects.filter(project=project, tag=tag).exists():
+            ProjectTag.objects.create(project=project, tag=tag)
+            return JsonResponse({'status': 'success', 'tag_id': tag.id, 'tag_name': tag.name})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Tag already exists for this project'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+@login_required
+def remove_project_tag(request):
+    """Remove a tag from a project"""
+    if request.method == 'POST':
+        project_id = request.POST.get('project_id')
+        tag_id = request.POST.get('tag_id')
+        
+        project = get_object_or_404(Project, id=project_id, owner=request.user)
+        tag = get_object_or_404(Tag, id=tag_id)
+        
+        # Remove the tag from the project
+        ProjectTag.objects.filter(project=project, tag=tag).delete()
+        
+        return JsonResponse({'status': 'success'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
 def public_profile(request, username):
     """Public profile page for a user, showing their public projects"""
     target_user = get_object_or_404(User, username=username)

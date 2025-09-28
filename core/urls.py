@@ -23,6 +23,10 @@ urlpatterns = [
 
     # Explore (public)
     path('explore/', views.explore_projects, name='explore_projects'),
+    
+    # Project Tags
+    path('projects/tags/add/', views.add_project_tag, name='add_project_tag'),
+    path('projects/tags/remove/', views.remove_project_tag, name='remove_project_tag'),
 
     # Profile (self)
     path('profile/', views.profile, name='profile'),
