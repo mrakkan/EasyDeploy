@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.template.defaultfilters import slugify
+from django.core.exceptions import ValidationError
 import uuid
 import subprocess
 import os
@@ -66,6 +67,60 @@ class Project(models.Model):
     
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """Model-level validations to ensure data integrity"""
+        errors = {}
+
+        # name required and unique per owner
+        name = (self.name or '').strip()
+        if not name:
+            errors['name'] = ['Project name is required']
+        elif self.owner_id:
+            qs = Project.objects.filter(owner_id=self.owner_id, name__iexact=name)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                errors['name'] = ['You already have a project with this name']
+
+        # github_repo_url basic format
+        url = (self.github_repo_url or '').strip()
+        if not url:
+            errors['github_repo_url'] = ['GitHub repository URL is required']
+        elif not (url.startswith('https://github.com/') or url.startswith('http://github.com/')):
+            errors['github_repo_url'] = ['GitHub URL must start with https://github.com/']
+        else:
+            parts = url.replace('https://github.com/', '').replace('http://github.com/', '').split('/')
+            if len(parts) < 2 or not parts[0] or not parts[1]:
+                errors['github_repo_url'] = ['Invalid GitHub repository URL format']
+
+        # exposed_port range and uniqueness
+        if self.exposed_port is not None:
+            try:
+                port = int(self.exposed_port)
+            except (TypeError, ValueError):
+                errors['exposed_port'] = ['Port must be a valid integer']
+            else:
+                if port < 1 or port > 65535:
+                    errors['exposed_port'] = ['Port must be between 1 and 65535']
+                else:
+                    qs = Project.objects.exclude(exposed_port__isnull=True).filter(exposed_port=port)
+                    if self.pk:
+                        qs = qs.exclude(pk=self.pk)
+                    if qs.exists():
+                        errors['exposed_port'] = ['This port is already used by another project']
+
+        # environment_variables should be valid JSON object if provided
+        if self.environment_variables:
+            try:
+                parsed = json.loads(self.environment_variables)
+                if not isinstance(parsed, dict):
+                    errors['environment_variables'] = ['Environment variables must be a JSON object']
+            except Exception:
+                errors['environment_variables'] = ['Environment variables must be valid JSON']
+
+        if errors:
+            raise ValidationError(errors)
     
     def get_next_available_port(self):
         """Get next available port starting from 3000"""
@@ -82,7 +137,7 @@ class Project(models.Model):
         except json.JSONDecodeError:
             return {}
     
-    def deploy_with_docker(self):
+    def deploy_with_docker(self, deployment):
         """Deploy project using Docker with minimal-downtime (blue-green):
         - Clean old clone dir (avoid 'already exists') then git clone
         - Build image
@@ -94,6 +149,18 @@ class Project(models.Model):
         try:
             self.status = 'deploying'
             self.save()
+            # helper to append log progressively
+            def append_log(text):
+                text = str(text)
+                if deployment.log:
+                    deployment.log += "\n" + text
+                else:
+                    deployment.log = text
+                deployment.save(update_fields=['log'])
+
+            deployment.status = 'in_progress'
+            deployment.save(update_fields=['status'])
+            append_log("Preparing deployment...")
 
             # Ensure webhook token and exposed port
             if not self.webhook_token:
@@ -112,23 +179,57 @@ class Project(models.Model):
                 shutil.rmtree(clone_dir, ignore_errors=True)
                 if os.path.exists(clone_dir):
                     clone_dir = os.path.join(tmp_dir, f"{repo_name}_{self.id}_{uuid.uuid4().hex[:8]}")
+            append_log(f"Cloning repository: {self.github_repo_url}")
             clone_result = subprocess.run(['git', 'clone', self.github_repo_url, clone_dir], capture_output=True, text=True)
             if clone_result.returncode != 0:
-                raise Exception(f"Git clone failed: {clone_result.stderr}")
+                append_log(clone_result.stderr.strip())
+                raise Exception(f"Git clone failed")
+            append_log("Repository cloned successfully")
+            
+            # Optional: run custom build command in repo before docker build
+            if self.build_command:
+                append_log(f"Running custom build command in repo: {self.build_command}")
+                try:
+                    # Use shell=True to allow chained commands (e.g., npm install && npm run build)
+                    proc = subprocess.Popen(self.build_command, cwd=clone_dir, shell=True,
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                    for line in iter(proc.stdout.readline, ''):
+                        if not line:
+                            break
+                        append_log(line.rstrip())
+                    proc.wait()
+                    if proc.returncode != 0:
+                        raise Exception("Custom build command failed")
+                except Exception as e:
+                    append_log(str(e))
+                    # Clean up clone dir to avoid leaving temp files
+                    shutil.rmtree(clone_dir, ignore_errors=True)
+                    raise
 
             # Check Dockerfile
             dockerfile_path = os.path.join(clone_dir, self.dockerfile_path)
             if not os.path.exists(dockerfile_path):
                 raise Exception(f"Dockerfile not found at {self.dockerfile_path}")
 
-            # Build Docker image
+            # Build Docker image (stream logs)
             image_name = f"{repo_name}_{self.id}".lower()
             self.docker_image_name = image_name
             self.save()
             build_cmd = ['docker', 'build', '-t', image_name, '-f', dockerfile_path, clone_dir]
-            build_result = subprocess.run(build_cmd, capture_output=True, text=True)
-            if build_result.returncode != 0:
-                raise Exception(f"Docker build failed: {build_result.stderr}")
+            append_log(f"Building Docker image: {image_name}")
+            try:
+                proc = subprocess.Popen(build_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                for line in iter(proc.stdout.readline, ''):
+                    if not line:
+                        break
+                    append_log(line.rstrip())
+                proc.wait()
+                if proc.returncode != 0:
+                    raise Exception("Docker build failed")
+            except Exception as e:
+                append_log(str(e))
+                raise
+            append_log("Docker image built successfully")
 
             # Prepare env
             env_vars = self.get_env_variables()
@@ -148,12 +249,15 @@ class Project(models.Model):
             staging_cmd.append(image_name)
             if self.run_command:
                 staging_cmd.extend(self.run_command.split())
+            append_log(f"Starting staging container on port {staging_port}...")
             staging_result = subprocess.run(staging_cmd, capture_output=True, text=True)
             if staging_result.returncode != 0:
-                raise Exception(f"Docker run (staging) failed: {staging_result.stderr}")
+                append_log(staging_result.stderr.strip())
+                raise Exception(f"Docker run (staging) failed")
             staging_container_id = staging_result.stdout.strip()
 
             # Health check the staging container
+            append_log("Health checking staging container...")
             healthy = False
             staging_url = f"http://localhost:{staging_port}/"
             for _ in range(30):
@@ -165,7 +269,9 @@ class Project(models.Model):
                     time.sleep(2)
             if not healthy:
                 subprocess.run(['docker', 'rm', '-f', staging_container_id], capture_output=True)
-                raise Exception(f"Staging container failed health check on {staging_url}")
+                append_log(f"Staging container failed health check on {staging_url}")
+                raise Exception("Staging health check failed")
+            append_log("Staging container is healthy")
 
             # Switch traffic with minimal downtime
             canonical_name = f"{repo_name}_{self.id}"
@@ -175,6 +281,7 @@ class Project(models.Model):
             # Stop old to free the port (do NOT remove yet)
             if old_id:
                 subprocess.run(['docker', 'stop', old_id], capture_output=True)
+                append_log("Stopped old container to free the port")
 
             # Ensure temp name not in use
             subprocess.run(['docker', 'rm', '-f', new_name], capture_output=True)
@@ -186,6 +293,7 @@ class Project(models.Model):
             final_cmd.append(image_name)
             if self.run_command:
                 final_cmd.extend(self.run_command.split())
+            append_log(f"Starting new container on port {self.exposed_port}...")
             final_result = subprocess.run(final_cmd, capture_output=True, text=True)
             if final_result.returncode != 0:
                 # Rollback: cleanup new and start old back
@@ -193,18 +301,21 @@ class Project(models.Model):
                 if old_id:
                     subprocess.run(['docker', 'start', old_id], capture_output=True)
                 subprocess.run(['docker', 'rm', '-f', staging_name], capture_output=True)
-                raise Exception(f"Docker run (final) failed: {final_result.stderr}")
+                append_log(final_result.stderr.strip())
+                raise Exception("Docker run (final) failed")
 
             # Promote new: remove old and rename
             new_container_id = final_result.stdout.strip()
             if old_id:
                 subprocess.run(['docker', 'rm', old_id], capture_output=True)
+                append_log("Removed old container")
             try:
                 subprocess.run(['docker', 'rename', new_name, canonical_name], capture_output=True)
             except Exception:
                 # If rename fails (name conflict), force remove name and retry once
                 subprocess.run(['docker', 'rm', '-f', canonical_name], capture_output=True)
                 subprocess.run(['docker', 'rename', new_name, canonical_name], capture_output=True)
+            append_log(f"Promoted new container to '{canonical_name}'")
 
             self.docker_container_id = new_container_id
             self.status = 'running'
@@ -214,10 +325,16 @@ class Project(models.Model):
             subprocess.run(['docker', 'rm', '-f', staging_name], capture_output=True)
             shutil.rmtree(clone_dir, ignore_errors=True)
 
-            return True, f"Deployed successfully on port {self.exposed_port}"
+            deployment.status = 'success'
+            deployment.save(update_fields=['status'])
+            append_log(f"Deployed successfully on port {self.exposed_port}")
+            return True, "Deployment completed"
         except Exception as e:
             self.status = 'failed'
             self.save()
+            deployment.status = 'failed'
+            deployment.save(update_fields=['status'])
+            append_log(f"Error: {str(e)}")
             return False, str(e)
     
     def stop_container(self):
@@ -332,8 +449,6 @@ class UserProfile(models.Model):
     location = models.CharField(max_length=100, blank=True)
     website = models.URLField(blank=True)
     github_username = models.CharField(max_length=100, blank=True)
-    twitter_username = models.CharField(max_length=100, blank=True)
-    linkedin_username = models.CharField(max_length=100, blank=True)
     avatar_url = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -354,10 +469,6 @@ class UserProfile(models.Model):
         links = {}
         if self.github_username:
             links['github'] = f"https://github.com/{self.github_username}"
-        if self.twitter_username:
-            links['twitter'] = f"https://twitter.com/{self.twitter_username}"
-        if self.linkedin_username:
-            links['linkedin'] = f"https://linkedin.com/in/{self.linkedin_username}"
         return links
 
 
@@ -376,32 +487,4 @@ class SocialAccount(models.Model):
         return f"{self.provider} - {self.user.username}"
 
 
-class EnvironmentVariable(models.Model):
-    """Model for storing environment variables"""
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='env_vars')
-    key = models.CharField(max_length=100)
-    value = models.CharField(max_length=255)
-    is_secret = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'environment_variables'
-        unique_together = ['project', 'key']
-    
-    def __str__(self):
-        return f"{self.project.name} - {self.key}"
-
-
-class BuildCache(models.Model):
-    """Model for storing build cache information"""
-    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='build_cache')
-    cache_key = models.CharField(max_length=255)
-    cache_data = models.JSONField(default=dict)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'build_caches'
-    
-    def __str__(self):
-        return f"Build Cache - {self.project.name}"
+# EnvironmentVariable model removed: environment vars are stored in Project.environment_variables JSON only

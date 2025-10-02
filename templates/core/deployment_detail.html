@@ -103,14 +103,12 @@
             </div>
             <div class="card-body">
                 <div class="bg-dark text-light p-3 rounded" style="font-family: monospace; font-size: 0.9em; max-height: 500px; overflow-y: auto;">
-                    {% if deployment.log %}
-                        <pre class="mb-0">{{ deployment.log }}</pre>
-                    {% else %}
-                        <div class="text-center text-muted">
-                            <i class="bi bi-file-text display-4"></i>
-                            <p class="mt-2">No deployment log available</p>
-                        </div>
-                    {% endif %}
+                    <div class="mb-2">
+                        <span id="deployment-status" class="badge {% if deployment.status == 'in_progress' %}bg-warning{% elif deployment.status == 'failed' %}bg-danger{% else %}bg-success{% endif %}">
+                            {% if deployment.status == 'in_progress' %}In Progress{% elif deployment.status == 'failed' %}Failed{% else %}Success{% endif %}
+                        </span>
+                    </div>
+                    <pre id="deployment-log" class="mb-0" data-deployment-id="{{ deployment.id }}" data-deploying="{% if deployment.status == 'in_progress' %}true{% else %}false{% endif %}">{{ deployment.log }}</pre>
                 </div>
             </div>
         </div>
@@ -201,12 +199,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-// Auto-refresh for in-progress deployments
-{% if deployment.status == 'in_progress' %}
-setTimeout(function() {
-    location.reload();
-}, 5000);
-{% endif %}
-</script>
+<!-- Auto-refresh handled by static/js/main.js (setupDeploymentLogRefresh) -->
 {% endblock %}

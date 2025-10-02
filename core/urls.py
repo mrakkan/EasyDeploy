@@ -16,10 +16,10 @@ urlpatterns = [
     path('projects/create/', views.create_project, name='create_project'),
     path('projects/<int:project_id>/deploy/', views.deploy_project, name='deploy_project'),
     path('deployments/<int:deployment_id>/', views.deployment_detail, name='deployment_detail'),
+    path('api/deployments/<int:deployment_id>/log/', views.deployment_log_api, name='deployment_log_api'),
     path('projects/<int:project_id>/delete/', views.delete_project, name='delete_project'),
     path('projects/<int:project_id>/stop/', views.stop_project, name='stop_project'),
-    path('projects/<int:project_id>/env/add/', views.add_env_var, name='add_env_var'),
-    path('env/<int:env_var_id>/delete/', views.delete_env_var, name='delete_env_var'),
+    # env var add/delete routes removed; env vars are managed within Project JSON
 
     # Explore (public)
     path('explore/', views.explore_projects, name='explore_projects'),
@@ -39,6 +39,7 @@ urlpatterns = [
     # GitHub OAuth
     path('github/login/', views.github_login, name='github_login'),
     path('github/callback/', views.github_callback, name='github_callback'),
+    path('github/disconnect/', views.github_disconnect, name='github_disconnect'),
 
     # Webhook endpoint
     path('webhook/github/<int:project_id>/', views.github_webhook, name='github_webhook'),

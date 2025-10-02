@@ -5,6 +5,8 @@
 {% block content %}
 <div class="container py-4">
   <div class="row g-4">
+    {% with u=display_user|default:user %}
+    {% with p=display_profile|default:u.profile %}
     <!-- Profile Header -->
     <div class="col-12">
       <div class="card shadow-sm">
@@ -13,11 +15,11 @@
             <div class="d-flex align-items-center gap-3">
               <!-- Avatar -->
               <div class="position-relative">
-                {% if profile.avatar_url %}
-                  <img src="{{ profile.avatar_url }}" alt="{{ user.get_full_name|default:user.username }}" class="rounded-circle img-thumbnail" style="width:96px;height:96px;object-fit:cover;">
+                {% if p.avatar_url %}
+                  <img src="{{ p.avatar_url }}" alt="{{ u.get_full_name|default:u.username }}" class="rounded-circle img-thumbnail" style="width:96px;height:96px;object-fit:cover;">
                 {% else %}
                   <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:96px;height:96px;font-size:2rem;font-weight:700;">
-                    {{ user.get_full_name|default:user.username|make_list|first|upper }}
+                    {{ u.get_full_name|default:u.username|make_list|first|upper }}
                   </div>
                 {% endif %}
                 {% if has_github_connected %}
@@ -27,27 +29,29 @@
 
               <!-- User Info -->
               <div>
-                <h1 class="h3 mb-1">{{ user.get_full_name|default:user.username }}</h1>
-                <div class="text-muted mb-2">@{{ user.username }}</div>
-                {% if profile.bio %}
-                  <p class="mb-0">{{ profile.bio }}</p>
+                <h1 class="h3 mb-1">{{ u.get_full_name|default:u.username }}</h1>
+                <div class="text-muted mb-2">@{{ u.username }}</div>
+                {% if p.bio %}
+                  <p class="mb-0">{{ p.bio }}</p>
                 {% endif %}
                 <div class="d-flex flex-wrap gap-3 mt-2 small text-muted">
-                  {% if profile.location %}
-                    <span><i class="bi bi-geo-alt me-1"></i>{{ profile.location }}</span>
+                  {% if p.location %}
+                    <span><i class="bi bi-geo-alt me-1"></i>{{ p.location }}</span>
                   {% endif %}
-                  {% if profile.company %}
-                    <span><i class="bi bi-building me-1"></i>{{ profile.company }}</span>
+                  {% if p.company %}
+                    <span><i class="bi bi-building me-1"></i>{{ p.company }}</span>
                   {% endif %}
                 </div>
               </div>
             </div>
 
             <!-- Actions -->
+            {% if user.is_authenticated and user.username == u.username %}
             <div class="mt-3 mt-md-0 d-flex gap-2">
               <a href="{% url 'core:edit_profile' %}" class="btn btn-primary"><i class="bi bi-pencil-square me-1"></i>Edit Profile</a>
               <a href="{% url 'core:change_password' %}" class="btn btn-outline-secondary"><i class="bi bi-key me-1"></i>Change Password</a>
             </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -79,32 +83,21 @@
           <ul class="list-group list-group-flush">
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div><i class="bi bi-envelope me-2 text-primary"></i><span class="text-muted">Email</span></div>
-              <div class="fw-medium">{{ user.email }}</div>
+              <div class="fw-medium">{{ u.email }}</div>
             </li>
-            {% if profile.website %}
+            {% if p.website %}
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div><i class="bi bi-globe me-2 text-success"></i><span class="text-muted">Website</span></div>
-              <a href="{{ profile.website }}" target="_blank" class="fw-medium text-decoration-none">{{ profile.website|truncatechars:40 }}</a>
+              <a href="{{ p.website }}" target="_blank" class="fw-medium text-decoration-none">{{ p.website|truncatechars:40 }}</a>
             </li>
             {% endif %}
-            {% if profile.github_username %}
+            {% if p.github_username %}
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div><i class="bi bi-github me-2"></i><span class="text-muted">GitHub</span></div>
-              <a href="https://github.com/{{ profile.github_username }}" target="_blank" class="fw-medium text-decoration-none">@{{ profile.github_username }}</a>
+              <a href="https://github.com/{{ p.github_username }}" target="_blank" class="fw-medium text-decoration-none">@{{ p.github_username }}</a>
             </li>
             {% endif %}
-            {% if profile.twitter_username %}
-            <li class="list-group-item d-flex align-items-center justify-content-between">
-              <div><i class="bi bi-twitter me-2 text-info"></i><span class="text-muted">Twitter</span></div>
-              <a href="https://twitter.com/{{ profile.twitter_username }}" target="_blank" class="fw-medium text-decoration-none">@{{ profile.twitter_username }}</a>
-            </li>
-            {% endif %}
-            {% if profile.linkedin_username %}
-            <li class="list-group-item d-flex align-items-center justify-content-between">
-              <div><i class="bi bi-linkedin me-2 text-primary"></i><span class="text-muted">LinkedIn</span></div>
-              <a href="https://linkedin.com/in/{{ profile.linkedin_username }}" target="_blank" class="fw-medium text-decoration-none">{{ profile.linkedin_username }}</a>
-            </li>
-            {% endif %}
+            {# Removed Twitter and LinkedIn sections to match model changes #}
           </ul>
         </div>
       </div>
@@ -112,11 +105,15 @@
 
     <!-- Footer Actions -->
     <div class="col-12">
+      {% if user.is_authenticated and user.username == u.username %}
       <div class="d-flex justify-content-center gap-3">
         <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
         <a href="{% url 'core:project_list' %}" class="btn btn-primary"><i class="bi bi-kanban me-1"></i>My Projects</a>
       </div>
+      {% endif %}
     </div>
   </div>
+  {% endwith %}
+  {% endwith %}
 </div>
 {% endblock %}

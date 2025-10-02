@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
-from .models import Project, Deployment, EnvironmentVariable, UserProfile, SocialAccount, Tag, ProjectTag
+from .models import Project, Deployment, UserProfile, SocialAccount, Tag, ProjectTag
 from django.utils import timezone
 from django.utils.text import slugify
 import requests
@@ -15,6 +15,7 @@ from django.db.models import Q
 import hmac
 import hashlib
 from django.views.decorators.csrf import csrf_exempt
+from .forms import SignUpForm, ProjectForm
 
 
 def home(request):
@@ -48,39 +49,14 @@ def user_logout(request):
 def signup(request):
     """สมัครสมาชิก"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        password2 = request.POST.get('password2')
-        
-        # ตรวจสอบข้อมูล
-        if not username or not email or not password:
-            messages.error(request, 'Please fill in all fields')
-            return render(request, 'core/signup.html')
-        
-        if password != password2:
-            messages.error(request, 'Passwords do not match')
-            return render(request, 'core/signup.html')
-        
-        if User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists')
-            return render(request, 'core/signup.html')
-        
-        if User.objects.filter(email=email).exists():
-            messages.error(request, 'Email already exists')
-            return render(request, 'core/signup.html')
-        
-        # สร้างผู้ใช้ใหม่
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password
-        )
-        
-        messages.success(request, 'Account created successfully! Please log in.')
-        return redirect('core:user_login')
-    
-    return render(request, 'core/signup.html')
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Account created successfully! Please log in.')
+            return redirect('core:user_login')
+        return render(request, 'core/signup.html', {'form': form})
+    form = SignUpForm()
+    return render(request, 'core/signup.html', {'form': form})
 
 def github_login(request):
     """เริ่มกระบวนการ GitHub OAuth"""
@@ -94,6 +70,8 @@ def github_login(request):
     
     # เก็บ state ใน session เพื่อตรวจสอบความปลอดภัย
     request.session['github_oauth_state'] = params['state']
+    # โหมดเชื่อมบัญชี: ถ้าผู้ใช้ล็อกอินอยู่ แปลว่าต้องการเชื่อม GitHub เข้ากับบัญชีปัจจุบัน
+    request.session['github_connect_mode'] = bool(request.user.is_authenticated)
     
     auth_url = f"{github_auth_url}?client_id={params['client_id']}&redirect_uri={params['redirect_uri']}&scope={params['scope']}&state={params['state']}"
     return redirect(auth_url)
@@ -172,48 +150,105 @@ def github_callback(request):
     if not github_email:
         github_email = f"{github_username}@github.local"
     
-    # สร้างหรือหาผู้ใช้ที่มีอยู่
-    try:
-        user = User.objects.get(username=github_username)
-        # อัปเดต email ถ้าจำเป็น
-        if github_email and user.email != github_email:
-            user.email = github_email
-            user.save()
-    except User.DoesNotExist:
-        user = User.objects.create_user(
-            username=github_username,
-            email=github_email,
-            password=secrets.token_urlsafe(32)  # รหัสผ่านสุ่ม
+    # โหมดการเชื่อมต่อหรือเข้าสู่ระบบด้วย GitHub
+    uid = str(user_data.get('id') or github_username)
+    connect_mode = bool(request.session.get('github_connect_mode')) and request.user.is_authenticated
+    # เคลียร์ flag ทันทีหลังใช้งาน
+    request.session.pop('github_connect_mode', None)
+
+    if connect_mode:
+        # เชื่อม GitHub เข้ากับบัญชีปัจจุบัน โดยไม่แก้ username/email/avatar เดิม
+        current_user = request.user
+        try:
+            profile = current_user.profile
+        except UserProfile.DoesNotExist:
+            profile = UserProfile.objects.create(user=current_user)
+
+        # กำหนด github_username ถ้าว่างเท่านั้น
+        if not profile.github_username:
+            profile.github_username = github_username or ''
+        # ตั้ง avatar จาก GitHub เฉพาะกรณีที่ยังไม่มีรูปเดิม
+        if avatar_url and not profile.avatar_url:
+            profile.avatar_url = avatar_url
+        profile.save()
+
+        SocialAccount.objects.update_or_create(
+            user=current_user,
+            provider='github',
+            defaults={
+                'uid': uid,
+                'extra_data': {
+                    'access_token': access_token,
+                    'user_data': user_data,
+                    'avatar_url': avatar_url,
+                }
+            }
         )
-    
-    # อัปเดต/สร้างโปรไฟล์เพื่อเก็บ avatar และ github_username
-    try:
-        profile = user.profile
-    except UserProfile.DoesNotExist:
+        messages.success(request, 'เชื่อมต่อ GitHub กับบัญชีของคุณเรียบร้อยแล้ว')
+        return redirect('core:edit_profile')
+    else:
+        # เข้าสู่ระบบด้วย GitHub (ผู้ใช้ยังไม่ล็อกอิน)
+        existing = SocialAccount.objects.filter(provider='github', uid=uid).first()
+        if existing:
+            user = existing.user
+            # เติม email เฉพาะกรณีว่าง
+            if github_email and not user.email:
+                user.email = github_email
+                user.save()
+            # ดูแลโปรไฟล์โดยไม่ทับข้อมูลเดิม
+            try:
+                profile = user.profile
+            except UserProfile.DoesNotExist:
+                profile = UserProfile.objects.create(user=user)
+            if not profile.github_username:
+                profile.github_username = github_username or ''
+            if avatar_url and not profile.avatar_url:
+                profile.avatar_url = avatar_url
+            profile.save()
+            login(request, user)
+            messages.success(request, f'Logged in with GitHub as {github_username}')
+            return redirect('core:dashboard')
+
+        # ไม่พบ SocialAccount: สร้างผู้ใช้ใหม่ โดยพยายามหลีกเลี่ยงการชนกับ username ที่มีอยู่
+        base_username = github_username or f'github_{uid}'
+        username = base_username
+        try:
+            User.objects.get(username=username)
+            suffix = 1
+            while True:
+                candidate = f"{base_username}_{suffix}"
+                try:
+                    User.objects.get(username=candidate)
+                    suffix += 1
+                except User.DoesNotExist:
+                    username = candidate
+                    break
+        except User.DoesNotExist:
+            pass
+
+        user = User.objects.create_user(
+            username=username,
+            email=github_email or '',
+            password=secrets.token_urlsafe(32)
+        )
         profile = UserProfile.objects.create(user=user)
-    profile.github_username = github_username
-    if avatar_url:
-        profile.avatar_url = avatar_url
-    profile.save()
-    
-    # เก็บบัญชี Social (GitHub) พร้อมข้อมูล token และ avatar ใน extra_data
-    SocialAccount.objects.update_or_create(
-        user=user,
-        provider='github',
-        defaults={
-            'uid': str(user_data.get('id') or github_username),
-            'extra_data': {
+        profile.github_username = github_username or ''
+        if avatar_url:
+            profile.avatar_url = avatar_url
+        profile.save()
+        SocialAccount.objects.create(
+            user=user,
+            provider='github',
+            uid=uid,
+            extra_data={
                 'access_token': access_token,
                 'user_data': user_data,
                 'avatar_url': avatar_url,
             }
-        }
-    )
-    
-    # เข้าสู่ระบบ
-    login(request, user)
-    messages.success(request, f'Logged in with GitHub as {github_username}')
-    return redirect('core:dashboard')
+        )
+        login(request, user)
+        messages.success(request, f'Logged in with GitHub as {github_username}')
+        return redirect('core:dashboard')
 
 
 @login_required
@@ -264,11 +299,9 @@ def project_detail(request, project_id):
     if project.status == 'running':
         project.check_container_status()
         
-    env_vars = EnvironmentVariable.objects.filter(project=project).order_by('key')
     deployments = Deployment.objects.filter(project=project).order_by('-timestamp')
     return render(request, 'core/project_detail.html', {
         'project': project,
-        'env_vars': env_vars,
         'deployments': deployments,
     })
 
@@ -276,53 +309,48 @@ def project_detail(request, project_id):
 def create_project(request):
     """Create a new project"""
     if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        github_repo_url = request.POST.get('github_repo_url', '').strip()
-        exposed_port_raw = request.POST.get('exposed_port', '').strip()
-        is_public = bool(request.POST.get('is_public'))
-        dockerfile_path = request.POST.get('dockerfile_path', '').strip() or 'Dockerfile'
-        build_command = request.POST.get('build_command', '').strip()
-        run_command = request.POST.get('run_command', '').strip()
-        env_vars_text = request.POST.get('env_vars', '')
-
-        if not name or not github_repo_url:
-            messages.error(request, 'Project name and GitHub repository URL are required.')
+        # Require GitHub connection before allowing project creation
+        has_github_connected = SocialAccount.objects.filter(user=request.user, provider='github').exists()
+        if not has_github_connected:
+            messages.warning(request, 'Please connect your GitHub account before creating a project.')
             return render(request, 'core/create_project.html', {
-                'has_github_connected': SocialAccount.objects.filter(user=request.user, provider='github').exists(),
-                'github_repos': []
+                'has_github_connected': False,
+                'github_repos': [],
+                'require_github': True,
+                'form': ProjectForm(user=request.user),
             })
 
-        # Parse env vars from KEY=VALUE lines into JSON dict
-        env_dict = {}
-        for line in env_vars_text.splitlines():
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            if '=' in line:
-                k, v = line.split('=', 1)
-                env_dict[k.strip()] = v.strip()
+        form = ProjectForm(request.POST, user=request.user)
+        if form.is_valid():
+            project = form.save()
+            messages.success(request, 'Project created successfully!')
+            return redirect('core:project_detail', project_id=project.id)
 
-        exposed_port = None
-        if exposed_port_raw:
-            try:
-                exposed_port = int(exposed_port_raw)
-            except ValueError:
-                messages.warning(request, 'Invalid port provided. It will be auto-assigned.')
-                exposed_port = None
+        # If invalid, re-fetch repos if connected for better UX
+        github_repos = []
+        try:
+            acct = SocialAccount.objects.filter(user=request.user, provider='github').first()
+            if acct and acct.extra_data.get('access_token'):
+                token = acct.extra_data.get('access_token')
+                headers = {
+                    'Authorization': f'token {token}',
+                    'Accept': 'application/vnd.github+json'
+                }
+                try:
+                    resp = requests.get('https://api.github.com/user/repos?per_page=50&sort=updated', headers=headers, timeout=10)
+                    if resp.status_code == 200:
+                        github_repos = resp.json()
+                except Exception:
+                    github_repos = []
+        except Exception:
+            github_repos = []
 
-        project = Project.objects.create(
-            name=name,
-            github_repo_url=github_repo_url,
-            exposed_port=exposed_port,
-            is_public=is_public,
-            dockerfile_path=dockerfile_path,
-            build_command=build_command,
-            run_command=run_command,
-            environment_variables=json.dumps(env_dict),
-            owner=request.user,
-        )
-        messages.success(request, 'Project created successfully!')
-        return redirect('core:project_detail', project_id=project.id)
+        return render(request, 'core/create_project.html', {
+            'has_github_connected': True,
+            'github_repos': github_repos,
+            'require_github': False,
+            'form': form,
+        })
 
     # GET: optionally fetch GitHub repos if connected
     github_repos = []
@@ -348,6 +376,8 @@ def create_project(request):
     return render(request, 'core/create_project.html', {
         'has_github_connected': has_github_connected,
         'github_repos': github_repos,
+        'require_github': not has_github_connected,
+        'form': ProjectForm(user=request.user),
     })
 
 @login_required
@@ -362,9 +392,8 @@ def deploy_project(request, project_id):
     # create deployment record
     deployment = Deployment.objects.create(project=project, status='in_progress', log='Starting deployment...')
 
-    success, message = project.deploy_with_docker()
-    deployment.log = (deployment.log or '') + f"\n{message}"
-    deployment.status = 'success' if success else 'failed'
+    success, message = project.deploy_with_docker(deployment)
+    # Timestamp completion; log and status are updated during deployment
     deployment.timestamp = timezone.now()
     deployment.save()
 
@@ -381,6 +410,19 @@ def deployment_detail(request, deployment_id):
     return render(request, 'core/deployment_detail.html', {
         'deployment': deployment,
         'recent_deployments': recent_deployments,
+    })
+
+@login_required
+def deployment_log_api(request, deployment_id):
+    """API endpoint to fetch deployment log and status in JSON format"""
+    deployment = get_object_or_404(Deployment, id=deployment_id)
+    if deployment.project.owner != request.user:
+        return JsonResponse({'error': 'Not authorized'}, status=403)
+    
+    return JsonResponse({
+        'log': deployment.log or '',
+        'status': deployment.status,
+        'timestamp': deployment.timestamp.isoformat() if deployment.timestamp else None
     })
 
 @login_required
@@ -414,40 +456,7 @@ def delete_project(request, project_id):
     messages.success(request, 'Project deleted successfully')
     return JsonResponse({'success': True})
 
-@login_required
-def add_env_var(request, project_id):
-    """Add an environment variable to a project"""
-    project = get_object_or_404(Project, id=project_id)
-    if project.owner != request.user:
-        return HttpResponseForbidden("Not authorized")
-    if request.method == 'POST':
-        key = request.POST.get('key', '').strip()
-        value = request.POST.get('value', '').strip()
-        is_secret = bool(request.POST.get('is_secret'))
-        if not key:
-            messages.error(request, 'Key is required')
-        else:
-            EnvironmentVariable.objects.update_or_create(
-                project=project,
-                key=key,
-                defaults={'value': value, 'is_secret': is_secret}
-            )
-            messages.success(request, 'Environment variable saved')
-        return redirect('core:project_detail', project_id=project.id)
-    return HttpResponseBadRequest('Invalid method')
-
-@login_required
-def delete_env_var(request, env_var_id):
-    """Delete an environment variable"""
-    env_var = get_object_or_404(EnvironmentVariable, id=env_var_id)
-    if env_var.project.owner != request.user:
-        return HttpResponseForbidden("Not authorized")
-    if request.method == 'POST':
-        project_id = env_var.project.id
-        env_var.delete()
-        messages.success(request, 'Environment variable deleted')
-        return redirect('core:project_detail', project_id=project_id)
-    return HttpResponseBadRequest('Invalid method')
+# add_env_var/delete_env_var removed; env vars managed via Project.environment_variables JSON only
 
 @login_required
 def profile(request):
@@ -474,6 +483,7 @@ def edit_profile(request):
         profile = request.user.profile
     except UserProfile.DoesNotExist:
         profile = UserProfile.objects.create(user=request.user)
+    has_github_connected = SocialAccount.objects.filter(user=request.user, provider='github').exists()
     if request.method == 'POST':
         # Update core User fields
         user = request.user
@@ -490,8 +500,6 @@ def edit_profile(request):
         profile.location = request.POST.get('location', '').strip()
         profile.website = request.POST.get('website', '').strip()
         profile.github_username = request.POST.get('github_username', '').strip()
-        profile.twitter_username = request.POST.get('twitter_username', '').strip()
-        profile.linkedin_username = request.POST.get('linkedin_username', '').strip()
 
         # Only update avatar_url if a non-empty value is provided
         new_avatar_url = request.POST.get('avatar_url', '').strip()
@@ -502,7 +510,10 @@ def edit_profile(request):
         profile.save()
         messages.success(request, 'Profile updated successfully')
         return redirect('core:profile')
-    return render(request, 'core/edit_profile.html', {'profile': profile})
+    return render(request, 'core/edit_profile.html', {
+        'profile': profile,
+        'has_github_connected': has_github_connected,
+    })
 
 @login_required
 def change_password(request):
@@ -608,16 +619,35 @@ def public_profile(request, username):
     projects_count = Project.objects.filter(owner=target_user, is_public=True).count()
     deployments_count = Deployment.objects.filter(project__owner=target_user).count()
     public_projects = Project.objects.filter(owner=target_user, is_public=True).order_by('-updated_at')
-    # Override 'user' in context to display target user's data in template
+    # Do NOT override 'user' in context (keeps request.user for auth checks)
+    # Provide display_user/display_profile for template to render target user's data
     return render(request, 'core/profile.html', {
-        'user': target_user,
-        'profile': target_profile,
+        'display_user': target_user,
+        'display_profile': target_profile,
         'has_github_connected': has_github_connected,
         'projects_count': projects_count,
         'deployments_count': deployments_count,
         'projects': public_projects,
+        'is_public_profile': True,
     })
 
+@login_required
+def github_disconnect(request):
+    """Disconnect GitHub from current user account"""
+    if request.method == 'POST':
+        SocialAccount.objects.filter(user=request.user, provider='github').delete()
+        try:
+            profile = request.user.profile
+            # เคลียร์ github_username แต่คง avatar_url เดิมไว้
+            profile.github_username = ''
+            profile.save()
+        except UserProfile.DoesNotExist:
+            pass
+        # ล้าง state เศษจาก OAuth ถ้ามี
+        request.session.pop('github_oauth_state', None)
+        messages.success(request, 'ยกเลิกการเชื่อมต่อ GitHub เรียบร้อยแล้ว')
+        return redirect('core:edit_profile')
+    return redirect('core:edit_profile')
 @csrf_exempt
 def github_webhook(request, project_id):
     """Webhook endpoint to trigger deployments from GitHub push events"""

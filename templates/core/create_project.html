@@ -94,6 +94,28 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- GitHub connect modal -->
+<div class="modal fade" id="githubConnectModal" tabindex="-1" aria-labelledby="githubConnectLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="githubConnectLabel"><i class="bi bi-github me-2"></i>เชื่อมต่อ GitHub ก่อนสร้างโปรเจ็กต์</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">คุณยังไม่ได้เชื่อมบัญชี GitHub กับ EasyDeploy โปรดเชื่อมต่อเพื่อดึงข้อมูล repository และจัดการการ deploy ได้สะดวก</p>
+        <div class="d-flex flex-column gap-2">
+          <a href="{% url 'core:github_login' %}" class="btn btn-dark"><i class="bi bi-github me-1"></i>เชื่อม GitHub</a>
+          <a href="{% url 'core:edit_profile' %}" class="btn btn-outline-secondary"><i class="bi bi-gear me-1"></i>ไปที่ Settings</a>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+      </div>
+    </div>
+  </div>
+ </div>
+
 <script>
 // Auto-generate project name from GitHub URL
 const repoUrlInput = document.getElementById('github_repo_url');
@@ -124,5 +146,17 @@ if (repoSelect) {
         }
     });
 }
+
+// Show GitHub connect modal if required
+document.addEventListener('DOMContentLoaded', function() {
+  const requireGithub = {{ require_github|yesno:'true,false' }};
+  if (requireGithub) {
+    const modalEl = document.getElementById('githubConnectModal');
+    if (modalEl) {
+      const modal = new bootstrap.Modal(modalEl);
+      modal.show();
+    }
+  }
+});
 </script>
 {% endblock %}

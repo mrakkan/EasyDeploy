@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, Deployment, EnvironmentVariable, BuildCache, Tag, ProjectTag, SocialAccount
+from .models import Project, Deployment, Tag, ProjectTag, SocialAccount
 
 
 @admin.register(Project)
@@ -16,18 +16,6 @@ class DeploymentAdmin(admin.ModelAdmin):
     list_filter = ['status', 'timestamp']
     search_fields = ['project__name', 'log']
 
-
-@admin.register(EnvironmentVariable)
-class EnvironmentVariableAdmin(admin.ModelAdmin):
-    list_display = ['project', 'key', 'is_secret', 'created_at']
-    list_filter = ['is_secret', 'created_at']
-    search_fields = ['project__name', 'key']
-
-
-@admin.register(BuildCache)
-class BuildCacheAdmin(admin.ModelAdmin):
-    list_display = ['project', 'cache_key', 'created_at', 'updated_at']
-    search_fields = ['project__name', 'cache_key']
 
 
 @admin.register(Tag)

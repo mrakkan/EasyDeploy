@@ -13,6 +13,25 @@
             <a href="{% url 'core:profile' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg me-1"></i>Close</a>
           </div>
 
+          <!-- GitHub connection status & action -->
+          <div class="alert {% if has_github_connected %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center justify-content-between" role="alert">
+            <div>
+              {% if has_github_connected %}
+                <i class="bi bi-check-circle me-2"></i>เชื่อมต่อ GitHub แล้ว
+              {% else %}
+                <i class="bi bi-exclamation-triangle me-2"></i>ยังไม่ได้เชื่อมต่อ GitHub — แนะนำให้เชื่อมก่อนสร้างโปรเจ็กต์
+              {% endif %}
+            </div>
+            {% if has_github_connected %}
+            <form method="post" action="{% url 'core:github_disconnect' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>ถอนการเชื่อม GitHub</button>
+            </form>
+            {% else %}
+            <a href="{% url 'core:github_login' %}" class="btn btn-dark btn-sm"><i class="bi bi-github me-1"></i>เชื่อม GitHub</a>
+            {% endif %}
+          </div>
+
           <form method="post" class="needs-validation" novalidate>
             {% csrf_token %}
 
@@ -70,20 +89,6 @@
                     <input type="text" id="github_username" name="github_username" value="{{ profile.github_username }}" class="form-control" placeholder="username">
                   </div>
                 </div>
-                <div class="col-12">
-                  <label for="twitter_username" class="form-label">Twitter Username</label>
-                  <div class="input-group">
-                    <span class="input-group-text">@</span>
-                    <input type="text" id="twitter_username" name="twitter_username" value="{{ profile.twitter_username }}" class="form-control" placeholder="username">
-                  </div>
-                </div>
-                <div class="col-12">
-                  <label for="linkedin_username" class="form-label">LinkedIn Username</label>
-                  <div class="input-group">
-                    <span class="input-group-text">linkedin.com/in/</span>
-                    <input type="text" id="linkedin_username" name="linkedin_username" value="{{ profile.linkedin_username }}" class="form-control" placeholder="username">
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -115,28 +120,6 @@
     }, false);
   }
 
-  // Auto-format social media inputs if elements exist
-  const tw = document.getElementById('twitter_username');
-  if (tw) {
-    tw.addEventListener('input', function(e){
-      if (e.target.value.startsWith('@')) {
-        e.target.value = e.target.value.substring(1);
-      }
-    });
-  }
-
-  const li = document.getElementById('linkedin_username');
-  if (li) {
-    li.addEventListener('input', function(e){
-      const value = e.target.value;
-      if (value.includes('linkedin.com/in/')) {
-        const parts = value.split('/in/');
-        if (parts.length > 1) {
-          e.target.value = parts[1].replace(/\/$/, '');
-        }
-      }
-    });
-  }
 })();
 </script>
 {% endblock %}
