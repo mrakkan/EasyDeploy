@@ -61,9 +61,17 @@ def signup(request):
 def github_login(request):
     """เริ่มกระบวนการ GitHub OAuth"""
     github_auth_url = 'https://github.com/login/oauth/authorize'
+    
+    # สร้าง redirect_uri แบบเต็มจากโดเมนปัจจุบัน (รองรับ ngrok)
+    host = request.get_host()
+    if 'ngrok' in host:
+        redirect_uri = f"https://{host}{settings.GITHUB_REDIRECT_URI}"
+    else:
+        redirect_uri = request.build_absolute_uri(settings.GITHUB_REDIRECT_URI)
+    
     params = {
         'client_id': settings.GITHUB_CLIENT_ID,
-        'redirect_uri': settings.GITHUB_REDIRECT_URI,
+        'redirect_uri': redirect_uri,
         'scope': 'user:email repo',
         'state': secrets.token_urlsafe(32)
     }
@@ -90,13 +98,20 @@ def github_callback(request):
         messages.error(request, 'No authorization code received')
         return redirect('core:user_login')
     
+    # สร้าง redirect_uri แบบเต็มจากโดเมนปัจจุบัน (รองรับ ngrok)
+    host = request.get_host()
+    if 'ngrok' in host:
+        redirect_uri = f"https://{host}{settings.GITHUB_REDIRECT_URI}"
+    else:
+        redirect_uri = request.build_absolute_uri(settings.GITHUB_REDIRECT_URI)
+    
     # ขอ access token จาก GitHub
     token_url = 'https://github.com/login/oauth/access_token'
     token_data = {
         'client_id': settings.GITHUB_CLIENT_ID,
         'client_secret': settings.GITHUB_CLIENT_SECRET,
         'code': code,
-        'redirect_uri': settings.GITHUB_REDIRECT_URI
+        'redirect_uri': redirect_uri
     }
     
     headers = {'Accept': 'application/json'}
@@ -309,17 +324,7 @@ def project_detail(request, project_id):
 def create_project(request):
     """Create a new project"""
     if request.method == 'POST':
-        # Require GitHub connection before allowing project creation
-        has_github_connected = SocialAccount.objects.filter(user=request.user, provider='github').exists()
-        if not has_github_connected:
-            messages.warning(request, 'Please connect your GitHub account before creating a project.')
-            return render(request, 'core/create_project.html', {
-                'has_github_connected': False,
-                'github_repos': [],
-                'require_github': True,
-                'form': ProjectForm(user=request.user),
-            })
-
+        # Allow project creation even if GitHub is not connected
         form = ProjectForm(request.POST, user=request.user)
         if form.is_valid():
             project = form.save()
@@ -327,10 +332,12 @@ def create_project(request):
             return redirect('core:project_detail', project_id=project.id)
 
         # If invalid, re-fetch repos if connected for better UX
+        has_github_connected = False
         github_repos = []
         try:
             acct = SocialAccount.objects.filter(user=request.user, provider='github').first()
             if acct and acct.extra_data.get('access_token'):
+                has_github_connected = True
                 token = acct.extra_data.get('access_token')
                 headers = {
                     'Authorization': f'token {token}',
@@ -346,7 +353,7 @@ def create_project(request):
             github_repos = []
 
         return render(request, 'core/create_project.html', {
-            'has_github_connected': True,
+            'has_github_connected': has_github_connected,
             'github_repos': github_repos,
             'require_github': False,
             'form': form,
@@ -376,7 +383,8 @@ def create_project(request):
     return render(request, 'core/create_project.html', {
         'has_github_connected': has_github_connected,
         'github_repos': github_repos,
-        'require_github': not has_github_connected,
+        # Suggest connection via modal only, do not require
+        'require_github': False,
         'form': ProjectForm(user=request.user),
     })
 

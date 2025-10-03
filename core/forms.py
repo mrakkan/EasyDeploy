@@ -52,6 +52,13 @@ class ProjectForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         self.user = user
+        # Optional fields in the form
+        self.fields['dockerfile_path'].required = False
+        self.fields['build_command'].required = False
+        self.fields['run_command'].required = False
+        self.fields['exposed_port'].required = False
+        # Checkbox typically treated as optional in forms
+        self.fields['is_public'].required = False
 
     def clean_github_repo_url(self):
         url = (self.cleaned_data.get('github_repo_url') or '').strip()
@@ -78,6 +85,11 @@ class ProjectForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError('This port is already used by another project')
         return port
+
+    def clean_dockerfile_path(self):
+        path = (self.cleaned_data.get('dockerfile_path') or '').strip()
+        # Default to 'Dockerfile' if not provided
+        return path or 'Dockerfile'
 
     def clean_name(self):
         name = (self.cleaned_data.get('name') or '').strip()

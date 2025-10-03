@@ -25,7 +25,21 @@ SECRET_KEY = 'django-insecure-&3ec69-q6s4@*z@7v()&0md5si@w7%rxf8yku5)jlc*$a&p0i1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.ngrok-free.app', 'c15a29eed7f0.ngrok-free.app', '*', '4dab2655714b.ngrok-free.app']
+
+# Make Django respect proxy headers from ngrok
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Trust HTTPS origins for CSRF when using ngrok
+CSRF_TRUSTED_ORIGINS = [
+    'https://localhost',
+    'http://localhost',
+    'https://127.0.0.1',
+    'http://127.0.0.1',
+    'https://*.ngrok.io',
+    'https://*.ngrok-free.app',
+]
 
 
 # Application definition
@@ -135,7 +149,8 @@ LOGOUT_REDIRECT_URL = '/'
 # GitHub OAuth Settings
 GITHUB_CLIENT_ID = 'Ov23liDBqBoJA5motUgG'
 GITHUB_CLIENT_SECRET = 'eb1a57dd78a98c8dd584d5743537b932baae4b8d'
-GITHUB_REDIRECT_URI = 'http://localhost:8000/github/callback/'
+# ใช้ request.build_absolute_uri แทนการ hardcode URL
+GITHUB_REDIRECT_URI = '/github/callback/'
 
 # Login/Logout URLs
 LOGIN_REDIRECT_URL = '/dashboard/'
