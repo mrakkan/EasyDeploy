@@ -32,7 +32,7 @@ pip install -r requirements.txt
 3) เตรียมฐานข้อมูลและรันเซิร์ฟเวอร์
 ```
 python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver
 ```
 เปิดใช้งานที่ `http://127.0.0.1:8000/` หรือจากเครื่องอื่นใน LAN ใช้ `http://<IP เครื่องคุณ>:8000/` (โปรดอนุญาต Windows Firewall ตามพอร์ตที่ใช้งาน)
 
