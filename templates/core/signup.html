@@ -14,24 +14,41 @@
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ form.data.username|default:'' }}" required>
+                        {% if form.errors.username %}
+                            <div class="text-danger small">{{ form.errors.username.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ form.data.email|default:'' }}" required>
+                        {% if form.errors.email %}
+                            <div class="text-danger small">{{ form.errors.email.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="password1" class="form-label">Password</label>
                         <input type="password" class="form-control" id="password1" name="password1" required>
+                        {% if form.errors.password1 %}
+                            <div class="text-danger small">{{ form.errors.password1.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="password2" class="form-label">Confirm Password</label>
                         <input type="password" class="form-control" id="password2" name="password2" required>
+                        {% if form.errors.password2 %}
+                            <div class="text-danger small">{{ form.errors.password2.0 }}</div>
+                        {% endif %}
                     </div>
                     {% if form.errors %}
                         <div class="alert alert-danger" role="alert">
-                            Please correct the errors and try again.
+                            โปรดแก้ไขข้อผิดพลาดด้านบน แล้วลองใหม่อีกครั้ง
                         </div>
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-warning" role="alert">
+                            {{ form.non_field_errors.0 }}
+                        </div>
+                    {% endif %}
                     {% endif %}
                     <button type="submit" class="btn btn-primary w-100">Create Account</button>
                 </form>

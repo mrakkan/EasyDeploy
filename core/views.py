@@ -51,7 +51,16 @@ def signup(request):
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
-            form.save()
+            user = form.save()
+            # login automatically after successful signup
+            username = form.cleaned_data.get('username')
+            raw_password = form.cleaned_data.get('password1')
+            auth_user = authenticate(request, username=username, password=raw_password)
+            if auth_user is not None:
+                login(request, auth_user)
+                messages.success(request, 'Account created and logged in successfully!')
+                return redirect('core:dashboard')
+            # fallback: redirect to login if auto-login failed
             messages.success(request, 'Account created successfully! Please log in.')
             return redirect('core:user_login')
         return render(request, 'core/signup.html', {'form': form})
@@ -72,7 +81,8 @@ def github_login(request):
     params = {
         'client_id': settings.GITHUB_CLIENT_ID,
         'redirect_uri': redirect_uri,
-        'scope': 'user:email repo',
+        # ขอสิทธิ์สำหรับสร้าง/จัดการ webhook โดยอัตโนมัติ
+        'scope': 'user:email repo admin:repo_hook',
         'state': secrets.token_urlsafe(32)
     }
     
@@ -123,6 +133,8 @@ def github_callback(request):
     
     token_json = token_response.json()
     access_token = token_json.get('access_token')
+    # เก็บ scopes ที่ได้รับเพื่ออ้างอิงภายหลัง (เช่น ตรวจสอบสิทธิ์ admin:repo_hook)
+    granted_scopes = token_json.get('scope')
     
     if not access_token:
         messages.error(request, 'No access token received')
@@ -196,6 +208,7 @@ def github_callback(request):
                     'access_token': access_token,
                     'user_data': user_data,
                     'avatar_url': avatar_url,
+                    'oauth_scopes': granted_scopes,
                 }
             }
         )
@@ -259,6 +272,7 @@ def github_callback(request):
                 'access_token': access_token,
                 'user_data': user_data,
                 'avatar_url': avatar_url,
+                'oauth_scopes': granted_scopes,
             }
         )
         login(request, user)
@@ -699,7 +713,7 @@ def github_webhook(request, project_id):
         pass
 
     deployment = Deployment.objects.create(project=project, status='in_progress', commit_hash=commit_hash, log='Triggered by GitHub webhook')
-    success, message = project.deploy_with_docker()
+    success, message = project.deploy_with_docker(deployment)
     deployment.log = (deployment.log or '') + f"\n{message}"
     deployment.status = 'success' if success else 'failed'
     deployment.timestamp = timezone.now()

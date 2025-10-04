@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-&3ec69-q6s4@*z@7v()&0md5si@w7%rxf8yku5)jlc*$a&p0i1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.ngrok-free.app', 'c15a29eed7f0.ngrok-free.app', '*', '4dab2655714b.ngrok-free.app']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.ngrok-free.app', 'c15a29eed7f0.ngrok-free.app', '*', '4dab2655714b.ngrok-free.app', '202d049223d4.ngrok-free.app']
 
 # Make Django respect proxy headers from ngrok
 USE_X_FORWARDED_HOST = True
